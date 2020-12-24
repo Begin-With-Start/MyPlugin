@@ -1,0 +1,41 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    repositories {
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/google/' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/aliyun-public/' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/jcenter/' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/aliyun-jitpack/' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/flutter.io' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/download.flutter.io' }
+        google()
+        jcenter()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:3.1.4"
+//        implementation 'com.android.tools.build:gradle:3.1.4'
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/google/' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/aliyun-public/' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/jcenter/' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/aliyun-jitpack/' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/flutter.io' }
+        maven { url 'http://maven.leoao.com/nexus/content/repositories/download.flutter.io' }
+        google()
+        jcenter()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
+//4.buildSrc下的插件
+//此处插件id大小写，中下划线均可*************
+//apply plugin: 'com.tb.plugin-buildSrc'
+//该方式可以不需要resources文件夹，直接引用插件全类名即可
+apply plugin:'com.leoao.netmonitor'
