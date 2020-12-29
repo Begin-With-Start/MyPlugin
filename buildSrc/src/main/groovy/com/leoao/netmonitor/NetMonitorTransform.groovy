@@ -97,7 +97,6 @@ class NetMonitorTransform extends Transform {
                             handleJarInput(context, jarInput, outputProvider)
                     }
 
-
             }
 
             def endTime = (System.currentTimeMillis() - statrtTime) / 1000
@@ -114,18 +113,7 @@ class NetMonitorTransform extends Transform {
             //列出目录所有文件（包含子文件夹，子文件夹内文件）
             directoryInput.file.eachFileRecurse { File file ->
                 def name = file.name
-                if (!NetMonitorUtils.isAndroidGenerated(name)) {
-                    String classPath = dealPath(directoryInput, file)
-
-                    if (NetMonitorClassFilter.filterClass(classPath, file)) {
-
-                    } else {
-//                        NetMonitorLoger.logLineChar("class 文件中  " + classPath.substring(1, classPath.length()))
-                        NetMonitorLoger.printLogLine("class 文件中 规则之外的文件：  " + classPath)
-
-                    }
-                }
-
+                //非android生成文件 .class文件
                 if (name.endsWith(".class") && !name.startsWith("R\$") && !"R.class".equals(name) && !"BuildConfig.class".equals(name)) {
                     // && "android/support/v4/app/FragmentActivity.class".equals(name)
                     NetMonitorLoger.printLogLine("class 文件中  " + dealPath(directoryInput, file))
@@ -153,58 +141,58 @@ class NetMonitorTransform extends Transform {
     static handleJarInput(Context context, JarInput jarInputs, TransformOutputProvider outputProvider) {
         //单个jar文件循环；
         jarInputs.each(
-                { jarInput ->
-                    if (jarInput.file.getAbsolutePath().endsWith(".jar")) {
-                        //重名名输出文件,因为可能同名,会覆盖
-                        def jarName = jarInput.name
-                        def md5Name = DigestUtils.md5Hex(jarInput.file.getAbsolutePath())
-                        if (jarName.endsWith(".jar")) {
-                            jarName = jarName.substring(0, jarName.length() - 4)
-                        }
-                        JarFile jarFile = new JarFile(jarInput.file)
-                        Enumeration enumeration = jarFile.entries()
-                        File tmpFile = new File(jarInput.file.getParent() + File.separator + "classes_temp.jar")
-                        //避免上次的缓存被重复插入
-                        if (tmpFile.exists()) {
-                            tmpFile.delete()
-                        }
-                        JarOutputStream jarOutputStream = new JarOutputStream(new FileOutputStream(tmpFile))
-                        //用于保存
-                        while (enumeration.hasMoreElements()) {
-                            JarEntry jarEntry = (JarEntry) enumeration.nextElement()
-                            String entryName = jarEntry.getName()
-                            ZipEntry zipEntry = new ZipEntry(entryName)
-                            InputStream inputStream = jarFile.getInputStream(jarEntry)
-                            //插桩class
-                            if (!entryName.startsWith("R\$") && !"R.class".equals(entryName) && !"BuildConfig.class".equals(entryName)
-                                    && !(entryName.contains("META-INF") || entryName.endsWith(".DSA") || entryName.endsWith(".SF") || entryName.endsWith(".gz"))
-                                && !jarEntry.isDirectory()
-                            ) {
-                                //class文件处理    "android/support/v4/app/FragmentActivity.class".equals(entryName)
-
-                                NetMonitorLoger.printLogLine('----------- deal with "jar" class file <' + entryName + "   是否为文件夹： " + jarEntry.isDirectory() + "  file " + jarInput.file.isFile() + '> -----------')
-                                jarOutputStream.putNextEntry(zipEntry)
-                                ClassReader classReader = new ClassReader(IOUtils.toByteArray(inputStream))
-                                ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS)
-                                ClassVisitor cv = new NetMonitorHookClassVisitor(classWriter)
-                                classReader.accept(cv, ClassReader.EXPAND_FRAMES)
-                                byte[] code = classWriter.toByteArray()
-                                jarOutputStream.write(code)
-                            } else {
-                                jarOutputStream.putNextEntry(zipEntry)
-                                jarOutputStream.write(IOUtils.toByteArray(inputStream))
-                            }
-                            jarOutputStream.closeEntry()
-                        }
-                        //结束
-                        jarOutputStream.close()
-                        jarFile.close()
-                        def dest = outputProvider.getContentLocation(jarName + md5Name,
-                                jarInput.contentTypes, jarInput.scopes, Format.JAR)
-                        FileUtils.copyFile(tmpFile, dest)
+            { jarInput ->
+                if (jarInput.file.getAbsolutePath().endsWith(".jar")) {
+                    //重名名输出文件,因为可能同名,会覆盖
+                    def jarName = jarInput.name
+                    def md5Name = DigestUtils.md5Hex(jarInput.file.getAbsolutePath())
+                    if (jarName.endsWith(".jar")) {
+                        jarName = jarName.substring(0, jarName.length() - 4)
+                    }
+                    JarFile jarFile = new JarFile(jarInput.file)
+                    Enumeration enumeration = jarFile.entries()
+                    File tmpFile = new File(jarInput.file.getParent() + File.separator + "classes_temp.jar")
+                    //避免上次的缓存被重复插入
+                    if (tmpFile.exists()) {
                         tmpFile.delete()
                     }
-                })
+                    JarOutputStream jarOutputStream = new JarOutputStream(new FileOutputStream(tmpFile))
+                    //用于保存
+                    while (enumeration.hasMoreElements()) {
+                        JarEntry jarEntry = (JarEntry) enumeration.nextElement()
+                        String entryName = jarEntry.getName()
+                        ZipEntry zipEntry = new ZipEntry(entryName)
+                        InputStream inputStream = jarFile.getInputStream(jarEntry)
+                        //插桩class
+                        if (!NetMonitorUtils.isAndroidGenerated(entryName)
+                                && !(NetMonitorUtils.isOtherFile(entryName))
+                                && !jarEntry.isDirectory()
+                        ) {
+                            //class文件处理    "android/support/v4/app/FragmentActivity.class".equals(entryName)
+                            NetMonitorLoger.printLogLine('----------- deal with "jar" class file <' + entryName + "   是否为文件夹： " + jarEntry.isDirectory() + "  file " + jarInput.file.isFile() + '> -----------')
+                            jarOutputStream.putNextEntry(zipEntry)
+                            ClassReader classReader = new ClassReader(IOUtils.toByteArray(inputStream))
+                            ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS)
+                            ClassVisitor cv = new NetMonitorHookClassVisitor(classWriter)
+                            classReader.accept(cv, ClassReader.EXPAND_FRAMES)
+                            byte[] code = classWriter.toByteArray()
+                            jarOutputStream.write(code)
+                        } else {
+                            jarOutputStream.putNextEntry(zipEntry)
+                            jarOutputStream.write(IOUtils.toByteArray(inputStream))
+                        }
+                        jarOutputStream.closeEntry()
+                    }
+                    //结束
+                    jarOutputStream.close()
+                    jarFile.close()
+                    def dest = outputProvider.getContentLocation(jarName + md5Name,
+                            jarInput.contentTypes, jarInput.scopes, Format.JAR)
+                    FileUtils.copyFile(tmpFile, dest)
+                    tmpFile.delete()
+                }
+            }
+        );
     }
 
     //asm 改动类
