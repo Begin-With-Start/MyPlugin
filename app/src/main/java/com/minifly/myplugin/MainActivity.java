@@ -123,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void getSyncGet() {
-        String url = "http://wwww.baidu.com";
+        String url = "https://www.baidu.com/";
         OkHttpClient okHttpClient = new OkHttpClient();
         final Request request = new Request.Builder()
                 .url(url)
@@ -145,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void getRequest() {
-        String url = "http://wwww.baidu.com";
+        String url = "https://www.baidu.com/";
         OkHttpClient okHttpClient = new OkHttpClient();
         final Request request = new Request.Builder()
                 .url(url)

@@ -1,19 +1,20 @@
 package com.leoao.netmonitor
 
-import aj.org.objectweb.asm.ClassWriter
 import com.android.build.api.transform.*
 import com.android.build.gradle.internal.pipeline.TransformManager
-import com.android.utils.FileUtils
 import com.google.common.collect.ImmutableSet
-import jdk.internal.org.objectweb.asm.ClassVisitor
 import org.apache.commons.codec.digest.DigestUtils
+import org.apache.commons.io.FileUtils
 import org.apache.commons.io.IOUtils
 import org.gradle.api.Project
 import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassWriter
 
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
 import java.util.jar.JarOutputStream
+import java.util.zip.ZipEntry
 
 class NetMonitorTransform extends Transform {
 
@@ -108,33 +109,43 @@ class NetMonitorTransform extends Transform {
 
     //处理目录中的class 目标文件
     static handleDirectoryInput(DirectoryInput directoryInput, TransformOutputProvider outputProvider) {
+        //是否是目录
         if (directoryInput.file.isDirectory()) {
-            directoryInput.file.eachFileRecurse {
-                File file ->
-                    def name = file.name
-                    if (!NetMonitorUtils.isAndroidGenerated(name)) {
-                        String classPath = dealPath(directoryInput, file)
+            //列出目录所有文件（包含子文件夹，子文件夹内文件）
+            directoryInput.file.eachFileRecurse { File file ->
+                def name = file.name
+                if (!NetMonitorUtils.isAndroidGenerated(name)) {
+                    String classPath = dealPath(directoryInput, file)
 
-                        if (NetMonitorClassFilter.filterClass(classPath, file)) {
-                        } else {
-                            NetMonitorLoger.printLine("class 文件中  " + classPath.substring(1, classPath.length()))
-                        }
+                    if (NetMonitorClassFilter.filterClass(classPath, file)) {
+
+                    } else {
+//                        NetMonitorLoger.logLineChar("class 文件中  " + classPath.substring(1, classPath.length()))
+                        NetMonitorLoger.printLogLine("class 文件中 规则之外的文件：  " + classPath)
+
                     }
+                }
 
-
-                    //一般性处理，不论是否进行类的匹配都需要对文件进行拷贝到目标文件；
-                    File dest = outputProvider.getContentLocation(directoryInput.getName(),
-                            directoryInput.getContentTypes(),
-                            directoryInput.getScopes(),
-                            Format.DIRECTORY)
-                    try {
-                        FileUtils.copyDirectory(directoryInput.getFile(), dest)
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                if (name.endsWith(".class") && !name.startsWith("R\$") && !"R.class".equals(name) && !"BuildConfig.class".equals(name)) {
+                    // && "android/support/v4/app/FragmentActivity.class".equals(name)
+                    NetMonitorLoger.printLogLine("class 文件中  " + dealPath(directoryInput, file))
+                    ClassReader classReader = new ClassReader(file.bytes)
+                    ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS)
+                    ClassVisitor cv = new NetMonitorHookClassVisitor(classWriter)
+                    classReader.accept(cv, ClassReader.EXPAND_FRAMES)
+                    byte[] code = classWriter.toByteArray()
+                    FileOutputStream fos = new FileOutputStream(
+                            file.parentFile.absolutePath + File.separator + name)
+                    fos.write(code)
+                    fos.close()
+                }
             }
-
         }
+        //处理完输入文件之后，要把输出给下一个任务
+        def dest = outputProvider.getContentLocation(directoryInput.name,
+                directoryInput.contentTypes, directoryInput.scopes,
+                Format.DIRECTORY)
+        FileUtils.copyDirectory(directoryInput.file, dest)
     }
 
 
@@ -143,73 +154,68 @@ class NetMonitorTransform extends Transform {
         //单个jar文件循环；
         jarInputs.each(
                 { jarInput ->
-                    def name = jarInput.getName();
-                    if (!NetMonitorUtils.isAndroidGenerated(name)) {
-                        NetMonitorLoger.printLine("jar文件内：  " + name) //没做什么处理，直接打印了文件名；
-                    }
-
-                    File jarInputFile = jarInput.getFile()
-                    JarFile jarFile = new JarFile(jarInputFile) //原jar文件
-                    def newJarPath = "" //新的jar文件目录
-                    newJarPath = DigestUtils.md5Hex(jarInputFile.getAbsolutePath()).substring(0, 8) //让开老包的名字
-
-//                    def outputJarFile = new File(context.getTemporaryDir(), newJarPath + jarInputFile.getName())
-//                    JarOutputStream jarOutputStream = new JarOutputStream(new FileOutputStream(outputJarFile))
-
-                    Enumeration enumeration = jarFile.entries()
-                    while (enumeration.hasMoreElements()) {
-                        JarEntry jarEntry = enumeration.nextElement()
-//                        jarOutputStream.putNextEntry(jarEntry)
-
-                        String entryName = replaceSeparator(jarEntry.getName())
-                        //处理掉不必要的文件夹
-                        if (NetMonitorClassFilter.filterClass(entryName, jarInputFile)) {
-//                            NetMonitorLoger.printLine("命中目标." + entryName)
-                        } else {
-                            NetMonitorLoger.printLine(" entryName:  " + entryName)
-
-//                            //执行具体的改动类的操作
-//                            byte [] modifiedBytes = null
-//                            byte [] sourceBytes = null
-//                            sourceBytes = IOUtils.toByteArray(jarFile.getInputStream(jarEntry))
-////
-//                            if(entryName.contains("com.minifly.myplugin.MainActivity")){
-//                                modifiedBytes = modifyclass(sourceBytes)
-//                            }
-//
-//                            if (modifiedBytes == null) {
-//                                jarOutputStream.write(sourceBytes)
-//                            } else {
-//                                jarOutputStream.write(modifiedBytes)
-//                            }
-//                            jarOutputStream.closeEntry()
+                    if (jarInput.file.getAbsolutePath().endsWith(".jar")) {
+                        //重名名输出文件,因为可能同名,会覆盖
+                        def jarName = jarInput.name
+                        def md5Name = DigestUtils.md5Hex(jarInput.file.getAbsolutePath())
+                        if (jarName.endsWith(".jar")) {
+                            jarName = jarName.substring(0, jarName.length() - 4)
                         }
-                    }
+                        JarFile jarFile = new JarFile(jarInput.file)
+                        Enumeration enumeration = jarFile.entries()
+                        File tmpFile = new File(jarInput.file.getParent() + File.separator + "classes_temp.jar")
+                        //避免上次的缓存被重复插入
+                        if (tmpFile.exists()) {
+                            tmpFile.delete()
+                        }
+                        JarOutputStream jarOutputStream = new JarOutputStream(new FileOutputStream(tmpFile))
+                        //用于保存
+                        while (enumeration.hasMoreElements()) {
+                            JarEntry jarEntry = (JarEntry) enumeration.nextElement()
+                            String entryName = jarEntry.getName()
+                            ZipEntry zipEntry = new ZipEntry(entryName)
+                            InputStream inputStream = jarFile.getInputStream(jarEntry)
+                            //插桩class
+                            if (!entryName.startsWith("R\$") && !"R.class".equals(entryName) && !"BuildConfig.class".equals(entryName)
+                                    && !(entryName.contains("META-INF") || entryName.endsWith(".DSA") || entryName.endsWith(".SF") || entryName.endsWith(".gz"))
+                                && !jarEntry.isDirectory()
+                            ) {
+                                //class文件处理    "android/support/v4/app/FragmentActivity.class".equals(entryName)
 
-                    File dest = outputProvider.getContentLocation(newJarPath,
-                            jarInput.getContentTypes(),
-                            jarInput.getScopes(),
-                            Format.JAR);
-                    try {
-                        FileUtils.copyFile(jarInputFile, dest)
-                    } catch (IOException e) {
-                        e.printStackTrace()
+                                NetMonitorLoger.printLogLine('----------- deal with "jar" class file <' + entryName + "   是否为文件夹： " + jarEntry.isDirectory() + "  file " + jarInput.file.isFile() + '> -----------')
+                                jarOutputStream.putNextEntry(zipEntry)
+                                ClassReader classReader = new ClassReader(IOUtils.toByteArray(inputStream))
+                                ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS)
+                                ClassVisitor cv = new NetMonitorHookClassVisitor(classWriter)
+                                classReader.accept(cv, ClassReader.EXPAND_FRAMES)
+                                byte[] code = classWriter.toByteArray()
+                                jarOutputStream.write(code)
+                            } else {
+                                jarOutputStream.putNextEntry(zipEntry)
+                                jarOutputStream.write(IOUtils.toByteArray(inputStream))
+                            }
+                            jarOutputStream.closeEntry()
+                        }
+                        //结束
+                        jarOutputStream.close()
+                        jarFile.close()
+                        def dest = outputProvider.getContentLocation(jarName + md5Name,
+                                jarInput.contentTypes, jarInput.scopes, Format.JAR)
+                        FileUtils.copyFile(tmpFile, dest)
+                        tmpFile.delete()
                     }
-//                    jarOutputStream.close()
-                    jarFile.close()
                 })
     }
 
     //asm 改动类
-    private static byte [] modifyclass(byte [] sourceBytes){
-        try{
-            ClassWriter classWriter  = new ClassWriter(ClassWriter.COMPUTE_MAXS)
-            ClassVisitor classVisitor = new NetMonitorHookClassVisitor(0,classWriter)
+    private static byte[] modifyclass(byte[] sourceBytes) {
+        try {
+            ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS)
+            ClassVisitor classVisitor = new NetMonitorHookClassVisitor(classWriter)
             ClassReader classReader = new ClassReader(sourceBytes)
-            classReader.accept(classVisitor,ClassReader.EXPAND_FRAMES)
+            classReader.accept(classVisitor, ClassReader.EXPAND_FRAMES)
             return classWriter.toByteArray()
-        }catch(Exception ex){
-
+        } catch (Exception ex) {
             return sourceBytes
         }
     }
