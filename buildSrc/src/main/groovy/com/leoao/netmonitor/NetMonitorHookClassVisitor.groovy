@@ -31,7 +31,7 @@ class NetMonitorHookClassVisitor extends ClassVisitor implements Opcodes{
         mSuperName = superName
         mInterfaces = interfaces
 
-        NetMonitorLoger.printLogLine("扫描类：" +  mClassName + "   父类：  " + mSuperName )
+        Loger.printLogLine("扫描类：" +  mClassName + "   父类：  " + mSuperName )
     }
 
     /**
@@ -39,7 +39,7 @@ class NetMonitorHookClassVisitor extends ClassVisitor implements Opcodes{
      */
     @Override
     void visitEnd() {
-        NetMonitorLoger.printLogLine("visitEnd")
+        Loger.printLogLine("visitEnd")
         super.visitEnd()
     }
 
@@ -70,13 +70,13 @@ class NetMonitorHookClassVisitor extends ClassVisitor implements Opcodes{
 
     @Override
     FieldVisitor visitField(int i, String s, String s1, String s2, Object o) {
-        NetMonitorLoger.printLogLine("visitEnd s  " + s + "    s1  " + s1 + "  s2   " + s2)
+        Loger.printLogLine("visitEnd s  " + s + "    s1  " + s1 + "  s2   " + s2)
         return super.visitField(i, s, s1, s2, o)
     }
 
     @Override
     MethodVisitor visitMethod(int i, String s, String s1, String s2, String[] strings) {
-        NetMonitorLoger.printLogLine("visitMethod  s  " + s + "    s1  " + s1 + "  s2   " + s2)
+        Loger.printLogLine("visitMethod  s  " + s + "    s1  " + s1 + "  s2   " + s2)
         return super.visitMethod(i, s, s1, s2, strings)
     }
 }

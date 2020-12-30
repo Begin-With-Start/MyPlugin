@@ -1,6 +1,6 @@
 package com.leoao.netmonitor
 
-class NetMonitorLoger {
+class Loger {
     public static final String lineChar = "\033[40;32m" + "=====================       %s       =====================" + "\033[0m"
     public static final String logLineChar = "\033[0;30;47m" + "=====================       %s       =====================" + "\033[0m"
 

@@ -9,6 +9,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 
@@ -38,21 +39,9 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
-
         getRequest();
-
         getSyncGet();
-
         postString();
-
         postStream();
     }
 
@@ -77,7 +66,8 @@ public class MainActivity extends AppCompatActivity {
                 .url("https://api.github.com/markdown/raw")
                 .post(requestBody)
                 .build();
-        OkHttpClient okHttpClient = new OkHttpClient();
+        OkHttpClient okHttpClient = OkHttpClients.getInstance().okHttpClient;
+
         okHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -94,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "onResponse: " + response.body().string());
             }
         });
+        okHttpClient.eventListenerFactory();
     }
 
     private void postString() {
@@ -103,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
                 .url("https://api.github.com/markdown/raw")
                 .post(RequestBody.create(mediaType, requestBody))
                 .build();
-        OkHttpClient okHttpClient = new OkHttpClient();
+        OkHttpClient okHttpClient = OkHttpClients.getInstance().okHttpClient;
         okHttpClient.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -124,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void getSyncGet() {
         String url = "https://www.baidu.com/";
-        OkHttpClient okHttpClient = new OkHttpClient();
+        OkHttpClient okHttpClient = OkHttpClients.getInstance().okHttpClient;;
         final Request request = new Request.Builder()
                 .url(url)
                 .build();
@@ -146,7 +137,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void getRequest() {
         String url = "https://www.baidu.com/";
-        OkHttpClient okHttpClient = new OkHttpClient();
+        OkHttpClient okHttpClient = OkHttpClients.getInstance().okHttpClient;;
         final Request request = new Request.Builder()
                 .url(url)
                 .get()//默认就是GET请求，可以不写

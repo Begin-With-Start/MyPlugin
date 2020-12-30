@@ -19,6 +19,7 @@ class NetMonitorUtils {
                 entryName.endsWith(".gz") ||
                 entryName.endsWith(".xml") ||
                 entryName.endsWith(".properties") ||
-                entryName.endsWith(".MF")
+                entryName.endsWith(".MF") ||
+                entryName.endsWith(".js")
     }
 }

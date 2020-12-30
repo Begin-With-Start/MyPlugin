@@ -1,3 +1,4 @@
+include ':netmonitor'
 include ':app'
 include ':buildSrc'
 rootProject.name = "netmonitor"

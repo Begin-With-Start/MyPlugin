@@ -74,10 +74,10 @@ class NetMonitorTransform extends Transform {
     @Override
     void transform(Context context, Collection<TransformInput> inputs, Collection<TransformInput> referencedInputs, TransformOutputProvider outputProvider, boolean isIncremental) throws IOException, TransformException, InterruptedException {
         def statrtTime = System.currentTimeMillis()
-        NetMonitorLoger.printLine("开始代码扫描")
+        Loger.printLine("开始代码扫描")
         //进行类 jar class的处理；
         if (isIncremental) {
-            NetMonitorLoger.printLine("代码扫描完成 增量编译 耗时： " + endTime + "s")
+            Loger.printLine("代码扫描完成 增量编译 耗时： " + endTime + "s")
         } else {
             if (outputProvider != null) {
                 outputProvider.deleteAll() //之前输出目录不为空直接删除所有；
@@ -100,7 +100,7 @@ class NetMonitorTransform extends Transform {
             }
 
             def endTime = (System.currentTimeMillis() - statrtTime) / 1000
-            NetMonitorLoger.printLine("代码扫描完成 非增量编译 耗时： " + endTime + "s")
+            Loger.printLine("代码扫描完成 非增量编译 耗时： " + endTime + "s")
         }
 
     }
@@ -116,7 +116,7 @@ class NetMonitorTransform extends Transform {
                 //非android生成文件 .class文件
                 if (name.endsWith(".class") && !name.startsWith("R\$") && !"R.class".equals(name) && !"BuildConfig.class".equals(name)) {
                     // && "android/support/v4/app/FragmentActivity.class".equals(name)
-                    NetMonitorLoger.printLogLine("class 文件中  " + dealPath(directoryInput, file))
+                    Loger.printLogLine("class 文件中  " + dealPath(directoryInput, file))
                     ClassReader classReader = new ClassReader(file.bytes)
                     ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS)
                     ClassVisitor cv = new NetMonitorHookClassVisitor(classWriter)
@@ -167,9 +167,11 @@ class NetMonitorTransform extends Transform {
                         if (!NetMonitorUtils.isAndroidGenerated(entryName)
                                 && !(NetMonitorUtils.isOtherFile(entryName))
                                 && !jarEntry.isDirectory()
+                            && entryName.endsWith(".class")
+                            && entryName.contains("okhttp")
                         ) {
                             //class文件处理    "android/support/v4/app/FragmentActivity.class".equals(entryName)
-                            NetMonitorLoger.printLogLine('----------- deal with "jar" class file <' + entryName + "   是否为文件夹： " + jarEntry.isDirectory() + "  file " + jarInput.file.isFile() + '> -----------')
+                            Loger.printLogLine('----------- deal with "jar" class file <' + entryName + "   是否为文件夹： " + jarEntry.isDirectory() + "  file " + jarInput.file.isFile() + '> -----------')
                             jarOutputStream.putNextEntry(zipEntry)
                             ClassReader classReader = new ClassReader(IOUtils.toByteArray(inputStream))
                             ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS)
