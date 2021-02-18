@@ -11,7 +11,7 @@ import okhttp3.OkHttpClient;
  * description:
  */
 public class OkHttpClients {
-    public OkHttpClient okHttpClient = new OkHttpClient();
+    public OkHttpClient okHttpClient;
 
 
     static class OkhttpClientInstanceClass {
@@ -19,7 +19,7 @@ public class OkHttpClients {
     }
 
     private OkHttpClients() {
-        new OkHttpClient.Builder().addInterceptor(new NetWorkInterceptor()).build();
+        okHttpClient = new OkHttpClient.Builder().addInterceptor(new NetWorkInterceptor()).build();
     }
 
     public static OkHttpClients getInstance() {

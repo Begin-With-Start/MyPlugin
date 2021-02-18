@@ -42,7 +42,7 @@ class NetMonitorPlugin implements Plugin<Project> {
             android.registerTransform(new NetMonitorTransform(project)) //注入到appextension；
 
             //打印一下主工程的依赖
-//            NetMonitorLoger.printLine(project.respositores)
+            Loger.printLogLine("执行完成!")
         }else if(project.plugins.hasPlugin(AppExtension)){
             Loger.printLogLine("有app extension ")
         }else{
